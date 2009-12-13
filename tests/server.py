@@ -3,18 +3,14 @@ here = os.path.dirname(os.path.abspath(__file__))
 rootpath = os.path.split(here)[0]
 sys.path.append(rootpath) 
 
-import unittest
-import mysqlrep
+import unittest, mysqlrep
+import my_deployment
 
 class TestServerBasics(unittest.TestCase):
     """Test case to test server basics. It relies on an existing MySQL
     server"""
     def setUp(self):
-        from mysqlrep import Server, User, Linux
-        self.server = Server(sql_user=User("mats"),
-                             ssh_user=User("mats", "xyzzy"),
-                             machine=Linux(),
-                             socket='/var/run/mysqld/mysqld.sock')
+        self.server = my_deployment.master
 
     def testConfig(self):
         "Test to get some configuration information from the server"
