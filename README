@@ -1,0 +1,23 @@
+MySQL Python Replicant
+======================
+
+The MySQL Python Replicant is a library for controlling and
+maintaining large deployments of MySQL servers. The library provide an
+API to be able to fetch data from server, redirect slave servers, and
+in general control the replication setup.
+
+Testing
+=======
+
+To run the unit tests in the library
+
+   python test.py
+
+
+Installation
+============
+
+To install the library
+
+   python setup.py install
+
