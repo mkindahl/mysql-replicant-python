@@ -3,20 +3,23 @@ here = os.path.dirname(os.path.abspath(__file__))
 rootpath = os.path.split(here)[0]
 sys.path.append(rootpath) 
 
-import unittest, mysqlrep
+import unittest, mysqlrep, re
 import my_deployment
+
+_POSITION_CRE = re.compile(r"Position\(\d+, '\w+-bin.\d+', \d+\)")
 
 class TestServerBasics(unittest.TestCase):
     """Test case to test server basics. It relies on an existing MySQL
     server"""
+
     def setUp(self):
         self.server = my_deployment.master
-
+        
     def testConfig(self):
         "Test to get some configuration information from the server"
         self.assertEqual(self.server.host, "localhost")
-        self.assertEqual(self.server.port, 3306)
-        self.assertEqual(self.server.socket, '/var/run/mysqld/mysqld.sock')
+        self.assertEqual(self.server.port, 3307)
+        self.assertEqual(self.server.socket, '/var/run/mysqld/mysqld1.sock')
 
     def testFetchReplace(self):
         self.server.fetch_config(os.path.join(here, 'test.cnf'))
@@ -50,7 +53,20 @@ class TestServerBasics(unittest.TestCase):
         self.server.connect()
         self.assertEqual(self.server.sql("select 'Hello' as val")['val'],
                          "Hello")
- 
+        self.server.disconnect()
+
+    def testLockUnlock(self):
+        self.server.connect()
+        mysqlrep.flush_and_lock_database(self.server)
+        mysqlrep.unlock_database(self.server)
+        self.server.disconnect()
+
+    def testGetMasterPosition(self):
+        self.server.connect()
+        position = mysqlrep.fetch_master_pos(self.server)
+        self.assertTrue(_POSITION_CRE.match(str(position)))
+        self.server.disconnect()
+
 def suite():
     return unittest.makeSuite(TestServerBasics, 'test')
 

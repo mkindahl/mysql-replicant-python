@@ -21,6 +21,15 @@ class NoOptionError(Error):
     "Exception raised when ConfigManager does not find the option"
     pass
 
+class SlaveNotRunningError(Error):
+    "Exception raised when slave is not running but were expected to run"
+    pass
+
+class NotMasterError(Error):
+    """Exception raised when the server is not a master and the
+    operation is illegal."""
+    pass
+
 class Position:
     """Class to represent a binlog position for a specific server."""
     def __init__(self, server_id, file, pos):
@@ -116,6 +125,7 @@ class Server(object):
                 raise EmptyRowError
     
     def __init__(self, machine, sql_user, ssh_user,
+                 server_id=None,
                  host='localhost', port=3306, socket='/tmp/mysqld.sock',
                  config_section='mysqld', config_path=None):
         """Initialize the server object with data.
@@ -178,8 +188,13 @@ class Server(object):
 
         self.sql_user = sql_user
         self.ssh_user = ssh_user
+
+        # These attributes are explicit right now, we have to
+        # implement logic for fetching them from the configuration if
+        # necessary.
         self.host = host
         self.port = port
+        self.server_id = server_id
         self.socket = socket
 
         if config_path is None:
@@ -368,3 +383,101 @@ class Server(object):
         if value is None:
             value = _NONE_MARKER
         self.__config.set(self.__config_section, option, str(value))
+
+#
+# Various utilities
+#
+
+def flush_and_lock_database(server):
+    """Flush all tables and lock the database"""
+    server.sql("FLUSH TABLES WITH READ LOCK")
+
+def unlock_database(server):
+    "Unlock database"
+    server.sql("UNLOCK TABLES")
+
+_CHANGE_MASTER_TO = """CHANGE MASTER TO
+   MASTER_HOST=%s, MASTER_PORT=%s,
+   MASTER_USER=%s, MASTER_PASSWORD=%s,
+   MASTER_LOG_FILE=%s, MASTER_LOG_POS=%s"""
+
+_CHANGE_MASTER_TO_NO_POS = """CHANGE MASTER TO
+   MASTER_HOST=%s, MASTER_PORT=%s,
+   MASTER_USER=%s, MASTER_PASSWORD=%s"""
+
+def change_master(slave, master, position=None):
+    """Configure replication to read from a master and position."""
+    try:
+        if position:
+            slave.sql(_CHANGE_MASTER_TO_NO_POS,
+                      (master.host, master.port,
+                       master.repl_user.name,
+                       master.repl_user.passwd))
+        else:
+            slave.sql(_CHANGE_MASTER_TO, (master.host, master.port,
+                                          master.repl_user.name,
+                                          master.repl_user.passwd,
+                                          position.file, position.pos))
+    except AttributeError:
+        raise NotMasterError
+
+def fetch_master_pos(server):
+    """Get the position of the next event that will be written to
+    the binary log"""
+    result = server.sql("SHOW MASTER STATUS")
+    return Position(server.server_id,
+                    result["File"], result["Position"])
+
+def fetch_slave_pos(server):
+    """Get the position of the next event to be read from the master"""
+    result = server.sql("SHOW SLAVE STATUS")
+    return Position(server.server_id,
+                    result["Relay_Master_Log_File"],
+                    result["Exec_Master_Log_Pos"])
+
+_START_SLAVE_UNTIL = """START SLAVE UNTIL
+    MASTER_LOG_FILE=%s, MASTER_LOG_POS=%s"""
+
+_MASTER_POS_WAIT = "SELECT MASTER_POS_WAIT(%s, %s)"
+
+def slave_wait_and_stop(slave, position):
+    """Set up replication so that it will wait for the position to be
+    reached and then stop replication exactly at that binlog
+    position."""
+    server.sql("STOP_SLAVE")
+    server.sql(_START_SLAVE_UNTIL, (position.file, position.pos))
+    server.sql(_MASTER_POS_WAIT, (position.file, position.pos))
+    
+def slave_wait_for_empty_relay_log(slave):
+    result = server.sql("SHOW SLAVE STATUS");
+    file = result["Master_Log_File"]
+    pos = result["Read_Master_Log_Pos"]
+    if server.sql(_MASTER_POS_WAIT, (file, pos)) is None:
+        raise SlaveNotRunningError
+
+def fetch_binlog(server, binlog_files=None,
+                 start_datetime=None, stop_datetime=None):
+    """Fetch the lines of a binary log remotely using the
+    ``mysqlbinlog`` program.
+
+    If no binlog file names are given, a connection to the server is
+    made and a ``SHOW BINARY LOGS`` is executed to get a full list of
+    the binary logs, which is then used.
+    """
+    from subprocess import Popen, PIPE
+    if not binlog_files:
+        binlog_files = [
+            row["Log_name"] for row in server.sql("SHOW BINARY LOGS")]
+    
+    command = ["mysqlbinlog",
+               "--read-from-remote-server",
+               "--force",
+               "--host=%s" % (server.host),
+               "--user=%s" % (server.sql_user.name)]
+    if server.sql_user.passwd:
+        command.append("--password=%s" % (server.sql_user.passwd))
+    if start_datetime:
+        command.append("--start-datetime=%s" % (start_datetime))
+    if stop_datetime:
+        command.append("--stop-datetime=%s" % (stop_datetime))
+    return iter(Popen(command + binlog_files, stdout=PIPE).stdout)
