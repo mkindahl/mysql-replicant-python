@@ -13,29 +13,31 @@ class TestServerBasics(unittest.TestCase):
     server"""
 
     def setUp(self):
-        self.server = my_deployment.master
+        self.master = my_deployment.master
+        self.slave = my_deployment.slaves[0]
+        self.slaves = my_deployment.slaves
         
     def testConfig(self):
         "Test to get some configuration information from the server"
-        self.assertEqual(self.server.host, "localhost")
-        self.assertEqual(self.server.port, 3307)
-        self.assertEqual(self.server.socket, '/var/run/mysqld/mysqld1.sock')
+        self.assertEqual(self.master.host, "localhost")
+        self.assertEqual(self.master.port, 3307)
+        self.assertEqual(self.master.socket, '/var/run/mysqld/mysqld1.sock')
 
     def testFetchReplace(self):
-        self.server.fetch_config(os.path.join(here, 'test.cnf'))
-        self.assertEqual(self.server.get_option('user'), 'mysql')
-        self.assertEqual(self.server.get_option('log-bin'),
+        self.master.fetch_config(os.path.join(here, 'test.cnf'))
+        self.assertEqual(self.master.get_option('user'), 'mysql')
+        self.assertEqual(self.master.get_option('log-bin'),
                          '/var/log/mysql/master-bin')
-        self.assertEqual(self.server.get_option('slave-skip-start'), None)
-        self.server.set_option('no-value')
-        self.assertEqual(self.server.get_option('no-value'), None)
-        self.server.set_option('with-int-value', 4711)
-        self.assertEqual(self.server.get_option('with-int-value'), '4711')
-        self.server.set_option('with-string-value',
+        self.assertEqual(self.master.get_option('slave-skip-start'), None)
+        self.master.set_option('no-value')
+        self.assertEqual(self.master.get_option('no-value'), None)
+        self.master.set_option('with-int-value', 4711)
+        self.assertEqual(self.master.get_option('with-int-value'), '4711')
+        self.master.set_option('with-string-value',
                                'Careful with that axe, Eugene!')
-        self.assertEqual(self.server.get_option('with-string-value'),
+        self.assertEqual(self.master.get_option('with-string-value'),
                          'Careful with that axe, Eugene!')
-        self.server.replace_config(os.path.join(here, 'test-new.cnf'))
+        self.master.replace_config(os.path.join(here, 'test-new.cnf'))
         lines1 = file(os.path.join(here, 'test.cnf')).readlines()
         lines2 = file(os.path.join(here, 'test-new.cnf')).readlines()
         lines1 += ["\n", "no-value\n", "with-int-value = 4711\n",
@@ -46,26 +48,33 @@ class TestServerBasics(unittest.TestCase):
 
         
     def testSsh(self):
-        self.assertEqual(''.join(self.server.ssh(["echo", "-n", "Hello"])),
+        self.assertEqual(''.join(self.master.ssh(["echo", "-n", "Hello"])),
                          "Hello")
  
     def testSql(self):
-        self.server.connect()
-        self.assertEqual(self.server.sql("select 'Hello' as val")['val'],
+        self.master.connect()
+        self.assertEqual(self.master.sql("select 'Hello' as val")['val'],
                          "Hello")
-        self.server.disconnect()
+        self.master.disconnect()
 
     def testLockUnlock(self):
-        self.server.connect()
-        mysqlrep.flush_and_lock_database(self.server)
-        mysqlrep.unlock_database(self.server)
-        self.server.disconnect()
+        self.master.connect()
+        mysqlrep.flush_and_lock_database(self.master)
+        mysqlrep.unlock_database(self.master)
+        self.master.disconnect()
 
     def testGetMasterPosition(self):
-        self.server.connect()
-        position = mysqlrep.fetch_master_pos(self.server)
+        self.master.connect()
+        position = mysqlrep.fetch_master_pos(self.master)
         self.assertTrue(_POSITION_CRE.match(str(position)))
-        self.server.disconnect()
+        self.master.disconnect()
+
+    def testGetSlavePosition(self):
+        for slave in self.slaves:
+            slave.connect()
+            position = mysqlrep.fetch_slave_pos(slave)
+            self.assertTrue(_POSITION_CRE.match(str(position)))
+            slave.disconnect()
 
 def suite():
     return unittest.makeSuite(TestServerBasics, 'test')
