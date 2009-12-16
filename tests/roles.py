@@ -30,9 +30,12 @@ class TestRoles(unittest.TestCase):
         "Test that the slave role works"
         self._imbueRole(mysqlrep.Final(self.master))
 
+    def testRelayRole(self):
+        "Test that the slave role works"
+        self._imbueRole(mysqlrep.Relay(self.master))
+
 def suite():
     return unittest.makeSuite(TestRoles, 'test')
 
 if __name__ == '__main__':
     unittest.main(defaultTest='suite')
-

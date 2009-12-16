@@ -610,3 +610,29 @@ class Final(Role):
         server.start()
 
         server.repl_user = self.__master.repl_user
+
+class Relay(Role):
+    """A relay server is a server whose sole purpose is to forward
+    events from the binary log to slaves that are able to answer
+    queries.  The server has a binary log and also writes events
+    executed by the slave thread to the binary log.  Since it is not
+    necessary to be able to answer queries, all tables use the
+    BLACKHOLE engine."""
+
+    def __init__(self, master):
+        pass
+
+    def imbue(self, server):
+        server.fetch_config()
+        self._set_server_id(server)
+        self._enable_binlog(server)
+        server.set_option('log-slave-updates')
+        server.stop()
+        server.replace_config()
+        server.start()
+        server.sql("SET SQL_LOG_BIN = 0")
+        for db in server.sql("SHOW DATABASES"):
+            for table in server.sql("SHOW TABLES FROM %s", (db)):
+                server.sql("ALTER TABLE %s.%s ENGINE=BLACKHOLE", (db,table))
+        server.sql("SET SQL_LOG_BIN = 1")
+        
