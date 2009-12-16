@@ -526,7 +526,10 @@ class Role(object):
         The replication user will then be set as an attribute of the
         server so that it is available for slaves connecting to the
         server."""
-        server.sql("DROP USER %s", (user.name))
+        try:
+            server.sql("DROP USER %s", (user.name))
+        except OperationalError:
+            pass                # It is OK if this one fails
         server.sql("CREATE USER %s IDENTIFIED BY %s",
                    (user.name, user.passwd))
         server.sql("GRANT REPLICATION SLAVE ON *.* TO %s",

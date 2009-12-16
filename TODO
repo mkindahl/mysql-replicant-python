@@ -15,3 +15,6 @@
 
 * Read server id from configuration file if none is assigned by the constructor
 
+* A "cat: <file>: Permission denied" is printed when calling
+   stop_server. This should be transformed to an exception instead.
+
