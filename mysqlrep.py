@@ -73,10 +73,10 @@ class Linux(Machine):
     default_config_path = "/etc/mysql/my.cnf"
 
     def stop_server(self, server):
-        server.ssh("/etc/init.d/mysql stop")
+        server.ssh(["/etc/init.d/mysql", "stop"])
 
     def start_server(self, server):
-        server.ssh("/etc/init.d/mysql start")
+        server.ssh(["/etc/init.d/mysql", "start"])
 
 
 class Solaris(Machine):
@@ -84,10 +84,10 @@ class Solaris(Machine):
     default_config_path = "/etc/mysql/my.cnf"
 
     def stop_server(self, server):
-        server.ssh("/etc/sbin/svcadm disable mysql")
+        server.ssh(["/etc/sbin/svcadm", "disable", "mysql"])
 
     def start_server(self, server):
-        server.ssh("/etc/sbin/svcadm enable mysql")
+        server.ssh(["/etc/sbin/svcadm", "enable", "mysql"])
 
 
 _NONE_MARKER = "<>"
@@ -184,8 +184,6 @@ class Server(object):
            assigned.
         """
 
-        from ConfigParser import SafeConfigParser
-
         self.sql_user = sql_user
         self.ssh_user = ssh_user
 
@@ -202,7 +200,7 @@ class Server(object):
 
         self.__machine = machine
         self.__conn = None
-        self.__config = SafeConfigParser()
+        self.__config = None
         self.__tmpfile = None
         self.__config_path = config_path
         self.__config_section = config_section
@@ -294,7 +292,6 @@ class Server(object):
 
     def _fetch_config_file(self, config_path=None):
         from tempfile import mkstemp
-        assert not self.__tmpfile
         if not config_path:
             config_path = self.__config_path
         handle, file = mkstemp(text=True)
@@ -354,8 +351,11 @@ class Server(object):
         # We use ConfigParser, but since it cannot read configuration
         # files we options without values, we have to clean the output
         # once it is fetched before calling ConfigParser
+        from ConfigParser import SafeConfigParser
+
         self._fetch_config_file(config_path)
         self._clean_config_file()
+        self.__config = SafeConfigParser()
         self.__config.read(self.__tmpfile)
 
     def replace_config(self, config_path=None):
@@ -369,6 +369,7 @@ class Server(object):
         # (yet), we have to unclean the file before replacing it.
         self._unclean_config_file()
         self._replace_config_file(config_path)
+        self.__config = None
 
     def get_option(self, option):
         """Method to get the value of an option."""
@@ -384,6 +385,11 @@ class Server(object):
             value = _NONE_MARKER
         self.__config.set(self.__config_section, option, str(value))
 
+
+    def remove_option(self, option):
+        """Method to remove the option from the configuration
+        entirely."""
+        self.__config.remove_option(self.__config_section, option)
 #
 # Various utilities
 #
@@ -481,3 +487,126 @@ def fetch_binlog(server, binlog_files=None,
     if stop_datetime:
         command.append("--stop-datetime=%s" % (stop_datetime))
     return iter(Popen(command + binlog_files, stdout=PIPE).stdout)
+
+#
+# Roles
+#
+
+class Role(object):
+    """Base class for representing a server role.
+
+    The responsibility of a role is to configure a server for working
+    in that role. The configuration might involve changing the
+    configuration file for the server as well as setting variables for
+    the server.
+
+    Note that the role only is effective in the initial deployment of
+    the server. The reason is that the role of a server may change
+    over the lifetime of the server, so there is no way to enforce a
+    server to stay in a particular role.
+
+    Each role is imbued into a server using the call::
+
+       role.imbue(server)
+    """
+    def _set_server_id(self, server):
+        """A helper method that will set the server id unless is was
+        already set. In that case, we correct our own server id to be
+        what the configuration file says."""
+        try:
+            server.server_id = server.get_option('server-id')
+        except ConfigParser.NoOptionError:
+            server.set_option('server-id', server.server_id)
+
+        
+    def _create_repl_user(self, server, user):
+        """Helper method to create a replication user for the
+        server.
+
+        The replication user will then be set as an attribute of the
+        server so that it is available for slaves connecting to the
+        server."""
+        server.sql("DROP USER %s", (user.name))
+        server.sql("CREATE USER %s IDENTIFIED BY %s",
+                   (user.name, user.passwd))
+        server.sql("GRANT REPLICATION SLAVE ON *.* TO %s",
+                   (user.name))
+
+    def _enable_binlog(self, server):
+        """Enable the binlog by setting the value of the log-bin
+        option and log-bin-index. The values of these options will
+        only be set if there were no value previously set for log-bin;
+        if log-bin is already set, it is assumed that it is correctly
+        set and information is fetched."""
+        try:
+            server.get_option('log-bin')
+        except ConfigParser.NoOptionError:
+            server.set_config('log-bin', server.name + '-bin')
+            server.set_config('log-bin-index', server.name + '-bin.index')
+
+    def _disable_binlog(self, server):
+        """Disable the binary log by removing the log-bin option and
+        the log-bin-index option."""
+        try:
+            server.remove_option('log-bin')
+            server.remove_option('log-bin-index')
+        except ConfigParser.NoOptionError:
+            pass
+        
+class Master(Role):
+    """A master slave is a server whose purpose is to act as a
+    master. It means that it has a replication user with the right
+    privileges and also have the binary log activated.
+
+    The sequence below is a "smart" way to update the password of the
+    user. However, there are some missing defaults for the following
+    fields, causing warnings when executed: ssl_cipher, x509_issuer,
+    x509_subject
+
+    INSERT INTO mysql.user(user,host,password) VALUES(%s,'%%', PASSWORD(%s))
+    ON DUPLICATE KEY UPDATE password=PASSWORD(%s)
+    """
+
+    def __init__(self, repl_user):
+        self.__user = repl_user
+
+    def imbue(self, server):
+        server.connect()
+        # Fetch and update the configuration file
+        try:
+            server.fetch_config()
+            self._set_server_id(server)
+            self._enable_binlog(server)
+
+            # Put the new configuration file in place
+            server.stop()
+            server.replace_config()
+            server.start()
+
+        except ConfigParser.ParsingError:
+            pass                # Didn't manage to update config file
+
+        # Add a replication user
+        self._create_repl_user(server, self.__user)
+        server.repl_user = self.__user
+
+class Final(Role):
+    """A final server is a server that does not have a binary log.
+    The purpose of such a server is only to answer queries but never
+    to change role."""
+
+    def __init__(self, master):
+        self.__master = master
+
+    def imbue(self, server):
+        # Fetch and update the configuration file
+        server.fetch_config()
+        self._set_server_id(server)
+        self._disable_binlog(server)
+
+        # Put the new configuration in place
+        server.stop()
+        server.replace_config()
+        server.start()
+
+        server.repl_user = self.__master.repl_user

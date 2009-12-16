@@ -7,13 +7,11 @@
 * Have tests use mock database by default and allow tests to connect
    to real database as an option
 
-* Add roles from old repository
-
-- Add tests for the roles.
-
 * Add examples from old repository
 
 * Add remote binlog reader from old repository
 
 * Add remote binlog parser from old repository
+
+* Read server id from configuration file if none is assigned by the constructor
 

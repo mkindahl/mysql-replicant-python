@@ -18,12 +18,13 @@ class TestServerBasics(unittest.TestCase):
         self.slaves = my_deployment.slaves
         
     def testConfig(self):
-        "Test to get some configuration information from the server"
+        "Get some configuration information from the server"
         self.assertEqual(self.master.host, "localhost")
         self.assertEqual(self.master.port, 3307)
         self.assertEqual(self.master.socket, '/var/run/mysqld/mysqld1.sock')
 
     def testFetchReplace(self):
+        "Fetching a configuration file, adding some options, and replacing it"
         self.master.fetch_config(os.path.join(here, 'test.cnf'))
         self.assertEqual(self.master.get_option('user'), 'mysql')
         self.assertEqual(self.master.get_option('log-bin'),
@@ -45,31 +46,37 @@ class TestServerBasics(unittest.TestCase):
         lines1.sort()
         lines2.sort()
         self.assertEqual(lines1, lines2)
+        os.remove(os.path.join(here, 'test-new.cnf'))
 
         
     def testSsh(self):
+        "Testing ssh() call"
         self.assertEqual(''.join(self.master.ssh(["echo", "-n", "Hello"])),
                          "Hello")
  
     def testSql(self):
+        "Testing (read-only) SQL execution"
         self.master.connect()
         self.assertEqual(self.master.sql("select 'Hello' as val")['val'],
                          "Hello")
         self.master.disconnect()
 
     def testLockUnlock(self):
+        "Test that the lock and unlock functions can be called"
         self.master.connect()
         mysqlrep.flush_and_lock_database(self.master)
         mysqlrep.unlock_database(self.master)
         self.master.disconnect()
 
     def testGetMasterPosition(self):
+        "Fetching master position from the master and checking format"
         self.master.connect()
         position = mysqlrep.fetch_master_pos(self.master)
         self.assertTrue(_POSITION_CRE.match(str(position)))
         self.master.disconnect()
 
     def testGetSlavePosition(self):
+        "Fetching slave positions from the slaves and checking format"
         for slave in self.slaves:
             slave.connect()
             position = mysqlrep.fetch_slave_pos(slave)
