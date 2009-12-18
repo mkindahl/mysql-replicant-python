@@ -65,7 +65,7 @@ class NotMasterError(Error):
 
 class Position:
     """Class to represent a binlog position for a specific server."""
-    def __init__(self, server_id, file, pos):
+    def __init__(self, server_id=None, file='', pos=0):
         self.server_id = server_id
         self.file = file
         self.pos = pos
@@ -82,8 +82,13 @@ class Position:
 
     def __repr__(self):
         "Give a printable and parsable representation of a binlog position"
-        args = str(self.server_id) + ", '" + self.file + "', " + str(self.pos)
+        if self.pos == 0 or self.file == '':
+            args = ''
+        else:
+            args = ', '.join([str(self.server_id), "'" + self.file + "'",
+                              str(self.pos)])
         return "Position(" + args + ")"
+            
 
 class User(object):
     """A MySQL server user"""
@@ -157,10 +162,10 @@ class Server(object):
             else:
                 raise EmptyRowError
     
-    def __init__(self, machine, sql_user, ssh_user,
+    def __init__(self, name, machine, sql_user, ssh_user,
                  server_id=None,
                  host='localhost', port=3306, socket='/tmp/mysqld.sock',
-                 config_section='mysqld', config_path=None):
+                 config_section=None, config_path=None):
         """Initialize the server object with data.
 
         If a configuration file path is provided, it will be used to
@@ -217,6 +222,7 @@ class Server(object):
            assigned.
         """
 
+        self.name = name
         self.sql_user = sql_user
         self.ssh_user = ssh_user
 
@@ -236,7 +242,7 @@ class Server(object):
         self.__config = None
         self.__tmpfile = None
         self.__config_path = config_path
-        self.__config_section = config_section
+        self.__config_section = config_section or name or 'mysqld'
             
     def connect(self, db=''):
         """Method to connect to the server, preparing for execution of
@@ -447,18 +453,19 @@ _CHANGE_MASTER_TO_NO_POS = """CHANGE MASTER TO
 def change_master(slave, master, position=None):
     """Configure replication to read from a master and position."""
     try:
-        if position:
-            slave.sql(_CHANGE_MASTER_TO_NO_POS,
-                      (master.host, master.port,
-                       master.repl_user.name,
-                       master.repl_user.passwd))
-        else:
-            slave.sql(_CHANGE_MASTER_TO, (master.host, master.port,
-                                          master.repl_user.name,
-                                          master.repl_user.passwd,
-                                          position.file, position.pos))
+        user = master.repl_user
     except AttributeError:
         raise NotMasterError
+
+    slave.connect()
+    if position:
+        slave.sql(_CHANGE_MASTER_TO,
+                  (master.host, master.port, user.name, user.passwd,
+                   position.file, position.pos))
+    else:
+        slave.sql(_CHANGE_MASTER_TO_NO_POS,
+                  (master.host, master.port, user.name, user.passwd))
+    slave.disconnect()
 
 def fetch_master_pos(server):
     """Get the position of the next event that will be written to
@@ -521,6 +528,40 @@ def fetch_binlog(server, binlog_files=None,
         command.append("--stop-datetime=%s" % (stop_datetime))
     return iter(Popen(command + binlog_files, stdout=PIPE).stdout)
 
+def clone(slave, source, master = None):
+    """Function to create a new slave by cloning either a master or a
+    slave."""
+    backup_name = server.host + ".tar.gz"
+    source.connect()
+    if master is not None:
+        source.sql("STOP SLAVE");
+    lock_database(source)
+    if master is None:
+        position = fetch_master_position(source)
+    else:
+        position = fetch_slave_position(source)
+    source.ssh("tar Pzcf " + backup_name + " /usr/var/mysql")
+    if master is not None:
+        source.sql("START SLAVE")
+    subprocess.call(["scp", source.host + ":" + backup_name, slave.host + ":."])
+    slave.ssh("tar Pzxf " + backup_name + " /usr/var/mysql")
+    if master is None:
+        change_master(slave, source, position)
+    else:
+        change_master(slave, master, position)
+    slave.sql("START SLAVE")
+
+_START_SLAVE_UNTIL = "START SLAVE UNTIL MASTER_LOG_FILE=%s, MASTER_LOG_POS=%s"
+_MASTER_POS_WAIT = "SELECT MASTER_POS_WAIT(%s,%s)"
+
+def replicate_to_position(server, pos):
+    """Run replication until it reaches 'pos'.
+
+    The function will block until the slave have reached the position."""
+    server.sql(_START_SLAVE_UNTIL, (pos.file, pos.pos))
+    server.sql(_MASTER_POS_WAIT, (pos.file, pos.pos))
+    
+
 #
 # Roles
 #
@@ -561,12 +602,13 @@ class Role(object):
         server."""
         try:
             server.sql("DROP USER %s", (user.name))
+            server.sql("CREATE USER %s IDENTIFIED BY %s",
+                       (user.name, user.passwd))
         except OperationalError:
             pass                # It is OK if this one fails
-        server.sql("CREATE USER %s IDENTIFIED BY %s",
-                   (user.name, user.passwd))
-        server.sql("GRANT REPLICATION SLAVE ON *.* TO %s",
-                   (user.name))
+        finally:
+            server.sql("GRANT REPLICATION SLAVE ON *.* TO %s",
+                       (user.name))
 
     def _enable_binlog(self, server):
         """Enable the binlog by setting the value of the log-bin
@@ -614,17 +656,22 @@ class Master(Role):
             self._set_server_id(server)
             self._enable_binlog(server)
 
+
             # Put the new configuration file in place
             server.stop()
             server.replace_config()
-            server.start()
 
         except ConfigParser.ParsingError:
             pass                # Didn't manage to update config file
-
+        except IOError:
+            pass
+        finally:
+            server.start()
+            
         # Add a replication user
         self._create_repl_user(server, self.__user)
         server.repl_user = self.__user
+        server.disconnect()
 
 class Final(Role):
     """A final server is a server that does not have a binary log.

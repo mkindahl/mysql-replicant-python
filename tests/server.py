@@ -39,7 +39,7 @@ sys.path.append(rootpath)
 import unittest, mysqlrep, re
 import my_deployment
 
-_POSITION_CRE = re.compile(r"Position\(\d+, '\w+-bin.\d+', \d+\)")
+_POS_CRE = re.compile(r"Position\((\d+, '\w+-bin.\d+', \d+)?\)")
 
 class TestServerBasics(unittest.TestCase):
     """Test case to test server basics. It relies on an existing MySQL
@@ -105,16 +105,21 @@ class TestServerBasics(unittest.TestCase):
         "Fetching master position from the master and checking format"
         self.master.connect()
         position = mysqlrep.fetch_master_pos(self.master)
-        self.assertTrue(_POSITION_CRE.match(str(position)))
+        self.assertTrue(position is None or _POS_CRE.match(str(position)),
+                        "Position '%s' is not correct" % (str(position)))
         self.master.disconnect()
 
     def testGetSlavePosition(self):
         "Fetching slave positions from the slaves and checking format"
         for slave in self.slaves:
-            slave.connect()
-            position = mysqlrep.fetch_slave_pos(slave)
-            self.assertTrue(_POSITION_CRE.match(str(position)))
-            slave.disconnect()
+            try:
+                slave.connect()
+                position = mysqlrep.fetch_slave_pos(slave)
+                self.assertTrue(_POS_CRE.match(str(position)),
+                                "Incorrect position '%s'" % (str(position)))
+                slave.disconnect()
+            except mysqlrep.EmptyRowError:
+                pass
 
 def suite():
     return unittest.makeSuite(TestServerBasics, 'test')

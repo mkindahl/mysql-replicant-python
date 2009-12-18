@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (c) 2009, Sun Microsystems, Inc.
 # All rights reserved.
 #
@@ -33,19 +31,55 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-import unittest
+import sys, os.path
+here = os.path.dirname(os.path.abspath(__file__))
+rootpath = os.path.split(here)[0]
+sys.path.append(rootpath) 
+
+import unittest, mysqlrep, re
+import my_deployment
+
+class TestCommands(unittest.TestCase):
+    """Test case to test various commands"""
+
+    def setUp(self):
+        from mysqlrep import Master, User, Final
+
+        self.master = my_deployment.master
+        self.masters = my_deployment.servers[0:1]
+        self.slaves = my_deployment.servers[2:3]
+
+        master_role = Master(User("repl_user", "xyzzy"))
+        for master in self.masters:
+            master_role.imbue(master)
+
+        final_role = Final(self.masters[0])
+        for slave in self.slaves:
+            try:
+                final_role.imbue(slave)
+            except IOError:
+                pass
+
+    def testChangeMaster(self):
+        "Test the change_master command."
+        from mysqlrep import change_master
+
+        for slave in self.slaves:
+            change_master(slave, self.master)
+
+        self.master.connect("test")
+        self.master.sql("DROP TABLE IF EXISTS t1")
+        self.master.sql("CREATE TABLE t1 (a INT)")
+        self.master.disconnect()
+
+        for slave in self.slaves:
+            slave.connect("test")
+            result = slave.sql("SHOW TABLES")
 
 def suite():
-    import tests.basic, tests.server, tests.roles, tests.commands
-
-    suite = unittest.TestSuite()
-    suite.addTest(tests.basic.suite())
-    suite.addTest(tests.roles.suite())
-    suite.addTest(tests.server.suite())
-    suite.addTest(tests.commands.suite())
-
-    return suite
+    return unittest.makeSuite(TestCommands, 'test')
 
 if __name__ == '__main__':
     unittest.main(defaultTest='suite')
+
 

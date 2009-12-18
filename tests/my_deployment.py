@@ -40,7 +40,7 @@ class MultiLinux(Linux):
         self.__number = number
     def stop_server(self, server):
         server.ssh(["mysqld_multi", "stop", str(self.__number)])
-        pidfile = 
+        pidfile = ''.join("/var/run/mysqld", server.name, ".pid")
         while os.path.exists(pidfile):
             time.sleep(1)
 
@@ -51,35 +51,33 @@ class MultiLinux(Linux):
         time.sleep(1)           # Need some time for server to start
         print "done"
 
-servers = [Server(server_id=1,
+servers = [Server(server_id=1, name="mysqld1",
                   sql_user=User("mysql_replicant", "xyzzy"),
-                  ssh_user=User("mats"),
+                  ssh_user=User("mysql"),
                   machine=Linux(),
                   port=3307,
                   socket='/var/run/mysqld/mysqld1.sock',
-                  config_path='/etc/mysql/mysqld1.cnf',
-                  config_section='mysqld1'),
-           Server(server_id=2,
+                  config_path='/etc/mysql/mysqld1.cnf'),
+           Server(server_id=2, name="mysqld2",
                   sql_user=User("mysql_replicant", "xyzzy"),
-                  ssh_user=User("mats"),
+                  ssh_user=User("mysql"),
                   machine=Linux(),
                   port=3308,
                   socket='/var/run/mysqld/mysqld2.sock',
-                  config_path='/etc/mysql/mysqld2.cnf',
-                  config_section='mysqld2'),
-           Server(sql_user=User("mysql_replicant", "xyzzy"),
-                  ssh_user=User("mats"),
+                  config_path='/etc/mysql/mysqld2.cnf'),
+           Server(server_id=3, name="mysqld3",
+                  sql_user=User("mysql_replicant", "xyzzy"),
+                  ssh_user=User("mysql"),
                   machine=Linux(),
                   port=3309,
                   socket='/var/run/mysqld/mysqld3.sock',
-                  config_path='/etc/mysql/mysqld3.cnf',
-                  config_section='mysqld3'),
-           Server(sql_user=User("mysql_replicant", "xyzzy"),
-                  ssh_user=User("mats"),
+                  config_path='/etc/mysql/mysqld3.cnf'),
+           Server(server_id=4, name="mysqld4",
+                  sql_user=User("mysql_replicant", "xyzzy"),
+                  ssh_user=User("mysql"),
                   machine=Linux(),
                   port=3310,
                   socket='/var/run/mysqld/mysqld4.sock',
-                  config_path='/etc/mysql/mysqld4.cnf',
-                  config_section='mysqld4')]
+                  config_path='/etc/mysql/mysqld4.cnf')]
 master = servers[0]
 slaves = servers[1:]
