@@ -31,7 +31,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-from mysqlrep import Server, User, Linux
+from replicant import Server, User, Linux
 
 servers = [Server(server_id=1,
                   sql_user=User("mysql_replicant", "xyzzy"),

@@ -36,7 +36,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 rootpath = os.path.split(here)[0]
 sys.path.append(rootpath) 
 
-import unittest, mysqlrep, re
+import unittest, replicant, re
 import my_deployment
 
 _POS_CRE = re.compile(r"Position\((\d+, '\w+-bin.\d+', \d+)?\)")
@@ -97,14 +97,14 @@ class TestServerBasics(unittest.TestCase):
     def testLockUnlock(self):
         "Test that the lock and unlock functions can be called"
         self.master.connect()
-        mysqlrep.flush_and_lock_database(self.master)
-        mysqlrep.unlock_database(self.master)
+        replicant.flush_and_lock_database(self.master)
+        replicant.unlock_database(self.master)
         self.master.disconnect()
 
     def testGetMasterPosition(self):
         "Fetching master position from the master and checking format"
         self.master.connect()
-        position = mysqlrep.fetch_master_pos(self.master)
+        position = replicant.fetch_master_pos(self.master)
         self.assertTrue(position is None or _POS_CRE.match(str(position)),
                         "Position '%s' is not correct" % (str(position)))
         self.master.disconnect()
@@ -114,11 +114,11 @@ class TestServerBasics(unittest.TestCase):
         for slave in self.slaves:
             try:
                 slave.connect()
-                position = mysqlrep.fetch_slave_pos(slave)
+                position = replicant.fetch_slave_pos(slave)
                 self.assertTrue(_POS_CRE.match(str(position)),
                                 "Incorrect position '%s'" % (str(position)))
                 slave.disconnect()
-            except mysqlrep.EmptyRowError:
+            except replicant.EmptyRowError:
                 pass
 
 def suite():

@@ -36,7 +36,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 rootpath = os.path.split(here)[0]
 sys.path.append(rootpath) 
 
-import unittest, mysqlrep, re
+import unittest, replicant, re
 import my_deployment
 
 class TestRoles(unittest.TestCase):
@@ -57,15 +57,15 @@ class TestRoles(unittest.TestCase):
 
     def testMasterRole(self):
         "Test how the master role works"
-        self._imbueRole(mysqlrep.Master(mysqlrep.User("repl_user", "xyzzy")))
+        self._imbueRole(replicant.Master(replicant.User("repl_user", "xyzzy")))
         
     def testSlaveRole(self):
         "Test that the slave role works"
-        self._imbueRole(mysqlrep.Final(self.master))
+        self._imbueRole(replicant.Final(self.master))
 
     def testRelayRole(self):
         "Test that the slave role works"
-        self._imbueRole(mysqlrep.Relay(self.master))
+        self._imbueRole(replicant.Relay(self.master))
 
 def suite():
     return unittest.makeSuite(TestRoles, 'test')

@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 
 
-from mysqlrep import Server, User, Linux
+from replicant import Server, User, Linux
 import time, os.path
 
 class MultiLinux(Linux):

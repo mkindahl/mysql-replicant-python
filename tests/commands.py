@@ -36,14 +36,14 @@ here = os.path.dirname(os.path.abspath(__file__))
 rootpath = os.path.split(here)[0]
 sys.path.append(rootpath) 
 
-import unittest, mysqlrep, re
+import unittest, replicant, re
 import my_deployment
 
 class TestCommands(unittest.TestCase):
     """Test case to test various commands"""
 
     def setUp(self):
-        from mysqlrep import Master, User, Final
+        from replicant import Master, User, Final
 
         self.master = my_deployment.master
         self.masters = my_deployment.servers[0:1]
@@ -62,7 +62,7 @@ class TestCommands(unittest.TestCase):
 
     def testChangeMaster(self):
         "Test the change_master command."
-        from mysqlrep import change_master
+        from replicant import change_master
 
         for slave in self.slaves:
             change_master(slave, self.master)

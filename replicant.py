@@ -31,7 +31,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-"""mysqlrep - A library for working with deployments of MySQL servers.
+"""replicant - A library for working with deployments of MySQL servers.
 """
 
 __all__ = ["NotConnectedError", "EmptyRowError"]
