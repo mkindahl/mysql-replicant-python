@@ -107,7 +107,7 @@ class TestServerBasics(unittest.TestCase):
             self.assertTrue(position is None or _POS_CRE.match(str(position)),
                             "Position '%s' is not correct" % (str(position)))
             self.master.disconnect()
-        except replicant.EmptyRowError:
+        except replicant.NotMasterError:
             self.fail("Unable to test fetch_master_pos since master is not configured as a master")
 
     def testGetSlavePosition(self):

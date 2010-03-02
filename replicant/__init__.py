@@ -34,11 +34,10 @@
 """replicant - A library for working with deployments of MySQL servers.
 """
 
-__all__ = ["NotConnectedError", "EmptyRowError"]
-
 import os, re, subprocess, MySQLdb, ConfigParser
 
 from configfile import *
+from machine import *
 
 class Error(BaseException):
     "Base class for all exceptions in this package"
@@ -101,38 +100,6 @@ class User(object):
     def __repr__(self):
         return ' '.join(['<', self.name, ',', self.passwd, '>'])
 
-
-class Machine(object):
-    """Base class for all machines. This hold primitives for
-    accomplishing tasks on different hosts."""
-    pass
-
-class Linux(Machine):
-    """Class holding operating system specific methods for (Debian)
-    Linux."""
-    defaults_file = "/etc/mysql/my.cnf"
-
-    def stop_server(self, server):
-        server.ssh(["/etc/init.d/mysql", "stop"])
-
-    def start_server(self, server):
-        server.ssh(["/etc/init.d/mysql", "start"])
-
-
-class Solaris(Machine):
-    """Class holding operating system specific methods for Solaris."""
-    defaults_file = "/etc/mysql/my.cnf"
-
-    def stop_server(self, server):
-        server.ssh(["/etc/sbin/svcadm", "disable", "mysql"])
-
-    def start_server(self, server):
-        server.ssh(["/etc/sbin/svcadm", "enable", "mysql"])
-
-
-#
-# Configuration class
-#
 
 #
 # Roles
@@ -552,9 +519,12 @@ def change_master(slave, master, position=None):
 def fetch_master_pos(server):
     """Get the position of the next event that will be written to
     the binary log"""
-    result = server.sql("SHOW MASTER STATUS")
-    return Position(server.server_id,
-                    result["File"], result["Position"])
+    try:
+        result = server.sql("SHOW MASTER STATUS")
+        return Position(server.server_id,
+                        result["File"], result["Position"])
+    except EmptyRowError:
+        raise NotMasterError
 
 def fetch_slave_pos(server):
     """Get the position of the next event to be read from the master"""
