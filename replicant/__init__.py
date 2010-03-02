@@ -294,14 +294,18 @@ class Relay(Role):
         config = server.fetch_config()
         self._set_server_id(server, config)
         self._enable_binlog(server)
-        server.set('log-slave-updates')
+        config.set('log-slave-updates')
         server.stop()
         server.replace_config(config)
         server.start()
+        server.connect()
         server.sql("SET SQL_LOG_BIN = 0")
-        for db in server.sql("SHOW DATABASES"):
-            for table in server.sql("SHOW TABLES FROM %s", (db)):
-                server.sql("ALTER TABLE %s.%s ENGINE=BLACKHOLE", (db,table))
+        for row in server.sql("SHOW DATABASES"):
+            db = row["Database"]
+            if db in ('information_schema', 'mysql'):
+                continue
+            for table in server.sql("SHOW TABLES FROM %s" % (db)):
+                server.sql("ALTER TABLE %s.%s ENGINE=BLACKHOLE" % (db, table["Tables_in_" + db]))
         server.sql("SET SQL_LOG_BIN = 1")
         
 class Server(object):
@@ -534,6 +538,7 @@ def change_master(slave, master, position=None):
         raise NotMasterError
 
     slave.connect()
+    slave.sql("STOP SLAVE")
     if position:
         slave.sql(_CHANGE_MASTER_TO,
                   (master.host, master.port, user.name, user.passwd,
@@ -541,6 +546,7 @@ def change_master(slave, master, position=None):
     else:
         slave.sql(_CHANGE_MASTER_TO_NO_POS,
                   (master.host, master.port, user.name, user.passwd))
+    slave.sql("START SLAVE")
     slave.disconnect()
 
 def fetch_master_pos(server):
