@@ -36,9 +36,12 @@
 import unittest
 
 def suite():
-    import tests.basic, tests.server, tests.roles, tests.commands
+    import tests.config, tests.basic
+    import tests.server, tests.roles
+    import tests.commands
 
     suite = unittest.TestSuite()
+    suite.addTest(tests.config.suite())
     suite.addTest(tests.basic.suite())
     suite.addTest(tests.roles.suite())
     suite.addTest(tests.server.suite())

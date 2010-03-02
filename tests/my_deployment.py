@@ -32,12 +32,15 @@
 # SUCH DAMAGE.
 
 
-from replicant import Server, User, Linux
+from replicant import Server, User, Linux, Master, Final
 import time, os.path
 
 class MultiLinux(Linux):
+    """Class to handle the case where there are multiple servers
+    running at the same box, all managed by mysqld_multi."""
     def __init__(self, number):
         self.__number = number
+
     def stop_server(self, server):
         server.ssh(["mysqld_multi", "stop", str(self.__number)])
         pidfile = ''.join("/var/run/mysqld", server.name, ".pid")
@@ -51,33 +54,43 @@ class MultiLinux(Linux):
         time.sleep(1)           # Need some time for server to start
         print "done"
 
-servers = [Server(server_id=1, name="mysqld1",
-                  sql_user=User("mysql_replicant", "xyzzy"),
-                  ssh_user=User("mysql"),
-                  machine=Linux(),
-                  port=3307,
-                  socket='/var/run/mysqld/mysqld1.sock',
-                  config_path='/etc/mysql/mysqld1.cnf'),
-           Server(server_id=2, name="mysqld2",
-                  sql_user=User("mysql_replicant", "xyzzy"),
-                  ssh_user=User("mysql"),
-                  machine=Linux(),
-                  port=3308,
-                  socket='/var/run/mysqld/mysqld2.sock',
-                  config_path='/etc/mysql/mysqld2.cnf'),
-           Server(server_id=3, name="mysqld3",
-                  sql_user=User("mysql_replicant", "xyzzy"),
-                  ssh_user=User("mysql"),
-                  machine=Linux(),
-                  port=3309,
-                  socket='/var/run/mysqld/mysqld3.sock',
-                  config_path='/etc/mysql/mysqld3.cnf'),
-           Server(server_id=4, name="mysqld4",
-                  sql_user=User("mysql_replicant", "xyzzy"),
-                  ssh_user=User("mysql"),
-                  machine=Linux(),
-                  port=3310,
-                  socket='/var/run/mysqld/mysqld4.sock',
-                  config_path='/etc/mysql/mysqld4.cnf')]
-master = servers[0]
-slaves = servers[1:]
+_replicant_user = User("mysql_replicant", "xyzzy")
+_repl_user = User("repl_user", "xyzzy")
+
+def _cnf(name):
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(here, name + ".cnf")
+
+master = Server(server_id=1, name="mysqld1",
+                sql_user=_replicant_user,
+                ssh_user=User("mysql"),
+                machine=Linux(), role=Master(_repl_user),
+                port=3307,
+                socket='/var/run/mysqld/mysqld1.sock',
+                defaults_file=_cnf("mysqld1"),
+                config_section="mysqld1")
+slaves = [Server(server_id=2, name="mysqld2",
+                 sql_user=_replicant_user,
+                 ssh_user=User("mysql"),
+                 machine=Linux(), role=Final(master),
+                 port=3308,
+                 socket='/var/run/mysqld/mysqld2.sock',
+                 defaults_file=_cnf("mysqld2"),
+                 config_section="mysqld2"),
+          Server(server_id=3, name="mysqld3",
+                 sql_user=_replicant_user,
+                 ssh_user=User("mysql"),
+                 machine=Linux(), role=Final(master),
+                 port=3309,
+                 socket='/var/run/mysqld/mysqld3.sock',
+                 defaults_file=_cnf("mysqld3"),
+                 config_section="mysqld3"),
+          Server(server_id=4, name="mysqld4",
+                 sql_user=_replicant_user,
+                 ssh_user=User("mysql"),
+                 machine=Linux(), role=Final(master),
+                 port=3310,
+                 socket='/var/run/mysqld/mysqld4.sock',
+                 defaults_file=_cnf("mysqld4"),
+                 config_section="mysqld4")]
+servers = [master] + slaves

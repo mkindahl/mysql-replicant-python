@@ -58,20 +58,18 @@ class TestServerBasics(unittest.TestCase):
 
     def testFetchReplace(self):
         "Fetching a configuration file, adding some options, and replacing it"
-        self.master.fetch_config(os.path.join(here, 'test.cnf'))
-        self.assertEqual(self.master.get_option('user'), 'mysql')
-        self.assertEqual(self.master.get_option('log-bin'),
-                         '/var/log/mysql/master-bin')
-        self.assertEqual(self.master.get_option('slave-skip-start'), None)
-        self.master.set_option('no-value')
-        self.assertEqual(self.master.get_option('no-value'), None)
-        self.master.set_option('with-int-value', 4711)
-        self.assertEqual(self.master.get_option('with-int-value'), '4711')
-        self.master.set_option('with-string-value',
-                               'Careful with that axe, Eugene!')
-        self.assertEqual(self.master.get_option('with-string-value'),
+        config = self.master.fetch_config(os.path.join(here, 'test.cnf'))
+        self.assertEqual(config.get('user'), 'mysql')
+        self.assertEqual(config.get('log-bin'), '/var/log/mysql/master-bin')
+        self.assertEqual(config.get('slave-skip-start'), None)
+        config.set('no-value')
+        self.assertEqual(config.get('no-value'), None)
+        config.set('with-int-value', 4711)
+        self.assertEqual(config.get('with-int-value'), '4711')
+        config.set('with-string-value', 'Careful with that axe, Eugene!')
+        self.assertEqual(config.get('with-string-value'),
                          'Careful with that axe, Eugene!')
-        self.master.replace_config(os.path.join(here, 'test-new.cnf'))
+        self.master.replace_config(config, os.path.join(here, 'test-new.cnf'))
         lines1 = file(os.path.join(here, 'test.cnf')).readlines()
         lines2 = file(os.path.join(here, 'test-new.cnf')).readlines()
         lines1 += ["\n", "no-value\n", "with-int-value = 4711\n",
@@ -103,11 +101,14 @@ class TestServerBasics(unittest.TestCase):
 
     def testGetMasterPosition(self):
         "Fetching master position from the master and checking format"
-        self.master.connect()
-        position = replicant.fetch_master_pos(self.master)
-        self.assertTrue(position is None or _POS_CRE.match(str(position)),
-                        "Position '%s' is not correct" % (str(position)))
-        self.master.disconnect()
+        try:
+            self.master.connect()
+            position = replicant.fetch_master_pos(self.master)
+            self.assertTrue(position is None or _POS_CRE.match(str(position)),
+                            "Position '%s' is not correct" % (str(position)))
+            self.master.disconnect()
+        except replicant.EmptyRowError:
+            self.fail("Unable to test fetch_master_pos since master is not configured as a master")
 
     def testGetSlavePosition(self):
         "Fetching slave positions from the slaves and checking format"

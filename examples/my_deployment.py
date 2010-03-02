@@ -31,37 +31,33 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-from replicant import Server, User, Linux
+from replicant import Server, User, Linux, ConfigFileManager
 
-servers = [Server(server_id=1,
+servers = [Server('master',
+                  server_id=1,
                   sql_user=User("mysql_replicant", "xyzzy"),
                   ssh_user=User("mats"),
                   machine=Linux(),
                   port=3307,
                   socket='/var/run/mysqld/mysqld1.sock',
-                  config_path='/etc/mysql/mysqld1.cnf',
-                  config_section='mysqld1'),
-           Server(server_id=2,
+                  ),
+           Server('slave1', server_id=2,
                   sql_user=User("mysql_replicant", "xyzzy"),
                   ssh_user=User("mats"),
                   machine=Linux(),
                   port=3308,
-                  socket='/var/run/mysqld/mysqld2.sock',
-                  config_path='/etc/mysql/mysqld2.cnf',
-                  config_section='mysqld2'),
-           Server(sql_user=User("mysql_replicant", "xyzzy"),
+                  socket='/var/run/mysqld/mysqld2.sock'),
+           Server('slave2', 
+                  sql_user=User("mysql_replicant", "xyzzy"),
                   ssh_user=User("mats"),
                   machine=Linux(),
                   port=3309,
-                  socket='/var/run/mysqld/mysqld3.sock',
-                  config_path='/etc/mysql/mysqld3.cnf',
-                  config_section='mysqld3'),
-           Server(sql_user=User("mysql_replicant", "xyzzy"),
+                  socket='/var/run/mysqld/mysqld3.sock'),
+           Server('slave3',
+                  sql_user=User("mysql_replicant", "xyzzy"),
                   ssh_user=User("mats"),
                   machine=Linux(),
                   port=3310,
-                  socket='/var/run/mysqld/mysqld4.sock',
-                  config_path='/etc/mysql/mysqld4.cnf',
-                  config_section='mysqld4')]
+                  socket='/var/run/mysqld/mysqld4.sock')]
 master = servers[0]
 slaves = servers[1:]
