@@ -38,4 +38,4 @@ setup(name='mysql-replicant',
       description='Package for controlling servers in a replication deployment',
       author='Mats Kindahl',
       author_email='mats@sun.com',
-      py_modules=['replicant'])
+      packages=['replicant'])
