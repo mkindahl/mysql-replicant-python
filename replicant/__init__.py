@@ -66,6 +66,11 @@ class NotMasterError(Error):
     operation is illegal."""
     pass
 
+class NotSlaveError(Error):
+    """Exception raised when the server is not a slave and the
+    operation is illegal."""
+    pass
+
 class Position:
     """Class to represent a binlog position for a specific server."""
     def __init__(self, server_id=None, file='', pos=0):

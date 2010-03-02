@@ -48,11 +48,14 @@ def fetch_master_pos(server):
 
 def fetch_slave_pos(server):
     """Get the position of the next event to be read from the master"""
-    from . import Position
-    result = server.sql("SHOW SLAVE STATUS")
-    return Position(server.server_id,
-                    result["Relay_Master_Log_File"],
-                    result["Exec_Master_Log_Pos"])
+    from . import Position, EmptyRowError, NotSlaveError
+    try:
+        result = server.sql("SHOW SLAVE STATUS")
+        return Position(server.server_id,
+                        result["Relay_Master_Log_File"],
+                        result["Exec_Master_Log_Pos"])
+    except EmptyRowError:
+        raise NotSlaveError
 
 _START_SLAVE_UNTIL = """START SLAVE UNTIL
     MASTER_LOG_FILE=%s, MASTER_LOG_POS=%s"""
@@ -68,6 +71,7 @@ def slave_wait_and_stop(slave, position):
     server.sql(_MASTER_POS_WAIT, (position.file, position.pos))
     
 def slave_wait_for_empty_relay_log(slave):
+    "Wait until the relay log is empty and return."
     result = server.sql("SHOW SLAVE STATUS");
     file = result["Master_Log_File"]
     pos = result["Read_Master_Log_Pos"]

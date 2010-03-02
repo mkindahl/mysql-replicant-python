@@ -119,7 +119,7 @@ class TestServerBasics(unittest.TestCase):
                 self.assertTrue(_POS_CRE.match(str(position)),
                                 "Incorrect position '%s'" % (str(position)))
                 slave.disconnect()
-            except replicant.EmptyRowError:
+            except replicant.NotSlaveError:
                 pass
 
 def suite():
