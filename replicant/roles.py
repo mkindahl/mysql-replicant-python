@@ -1,3 +1,4 @@
+import ConfigParser
 
 class Role(object):
     """Base class for representing a server role.

@@ -253,12 +253,11 @@ class Server(object):
 
         for db in server.sql("SHOW DATABASES")
             print db["Database"]"""
-        try:
-            c = self.__conn.cursor(MySQLdb.cursors.DictCursor)
-            c.execute(command, args)
-            return Server.Row(c)
-        except AttributeError:
-            raise NotConnectedError
+
+        self.connect()
+        c = self.__conn.cursor(MySQLdb.cursors.DictCursor)
+        c.execute(command, args)
+        return Server.Row(c)
 
     def ssh(self, command):
         """Execute a shell command on the server.
@@ -284,17 +283,6 @@ class Server(object):
                             stdout=PIPE)
         output = process.communicate()[0]
         return output.split("\n")
-
-    def replace_file(self, remote, local):
-        """Function to put a file to a remote server."""
-        import shutil, subprocess
-        if self.host != "localhost":
-            target = self.ssh_user.name + "@" + self.host + ":" + path
-            process = subprocess.Popen(["scp", "-qB", local, target],
-                                       stderr=subprocess.PIPE)
-            err = process.communicate()[1]
-        else:
-            shutil.copyfile(local, remote)
 
     def fetch_config(self, path=None):
         return self.__config_manager.fetch_config(self, path)

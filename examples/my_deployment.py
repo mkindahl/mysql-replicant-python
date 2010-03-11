@@ -31,7 +31,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-from replicant import Server, User, Linux, ConfigFileManager
+from replicant import Server, User, Linux, ConfigManagerFile
 
 servers = [Server('master',
                   server_id=1,

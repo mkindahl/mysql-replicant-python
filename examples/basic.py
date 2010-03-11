@@ -47,9 +47,13 @@ print "# Executing 'ls'"
 for line in my_deployment.master.ssh(["ls"]):
     print line
 
-print "Master position is:", replicant.fetch_master_pos(my_deployment.master)
-
 try:
-    print replicant.fetch_slave_pos(my_deployment.master)
-except replicant.EmptyRowError:
-    print "Not configured as a slave"
+    print "Master position is:", replicant.fetch_master_pos(my_deployment.master)
+except replicant.NotMasterError:
+    print my_deployment.master.name, "is not configured as a master"
+
+for slave in my_deployment.slaves:
+    try:
+        print "Slave position is:", replicant.fetch_slave_pos(slave)
+    except replicant.NotSlaveError:
+        print slave.name, "not configured as a slave"
