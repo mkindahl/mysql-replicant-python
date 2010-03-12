@@ -51,12 +51,12 @@ class TestPosition(unittest.TestCase):
         
     def testSimple(self):
         from replicant import Position
-        positions = [Position(1, 'master-bin.00001', 4711),
-                     Position(1, 'master-bin.00001', 9393),
-                     Position(1, 'master-bin.00002', 102)]
-        strings = ["Position(1, 'master-bin.00001', 4711)",
-                   "Position(1, 'master-bin.00001', 9393)",
-                   "Position(1, 'master-bin.00002', 102)"]
+        positions = [Position('master-bin.00001', 4711),
+                     Position('master-bin.00001', 9393),
+                     Position('master-bin.00002', 102)]
+        strings = ["Position('master-bin.00001', 4711)",
+                   "Position('master-bin.00001', 9393)",
+                   "Position('master-bin.00002', 102)"]
  
         for i in range(0,len(positions)-1):
             self._checkPos(positions[i], strings[i])
@@ -70,17 +70,6 @@ class TestPosition(unittest.TestCase):
                     self.assertEqual(positions[i], positions[j])
                 else:
                     self.assertTrue(positions[i] > positions[j])
-
-    def testExcept(self):
-        try:
-            pos = [replicant.Position(1,'master-bin.00001',4711),
-                   replicant.Position(2,'master-bin.00001',4780)] 
-            result = (pos[0] < pos[1])
-        except ValueError, e:
-            pass
-        else:
-            fail("Expected ValueError")
-
 
 def suite():
     return unittest.makeSuite(TestPosition)

@@ -37,8 +37,6 @@ sys.path.append(rootpath)
 
 import replicant, my_deployment
 
-my_deployment.master.connect()
-
 print "# Executing 'show databases'"
 for db in my_deployment.master.sql("show databases"):
     print db["Database"]

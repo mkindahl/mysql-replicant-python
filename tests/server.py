@@ -39,7 +39,7 @@ sys.path.append(rootpath)
 import unittest, replicant, re
 import my_deployment
 
-_POS_CRE = re.compile(r"Position\((\d+, '\w+-bin.\d+', \d+)?\)")
+_POS_CRE = re.compile(r"Position\(('\w+-bin.\d+', \d+)?\)")
 
 class TestServerBasics(unittest.TestCase):
     """Test case to test server basics. It relies on an existing MySQL
@@ -87,26 +87,20 @@ class TestServerBasics(unittest.TestCase):
  
     def testSql(self):
         "Testing (read-only) SQL execution"
-        self.master.connect()
-        self.assertEqual(self.master.sql("select 'Hello' as val")['val'],
-                         "Hello")
-        self.master.disconnect()
+        result = self.master.sql("select 'Hello' as val")['val']
+        self.assertEqual(result, "Hello")
 
     def testLockUnlock(self):
         "Test that the lock and unlock functions can be called"
-        self.master.connect()
         replicant.flush_and_lock_database(self.master)
         replicant.unlock_database(self.master)
-        self.master.disconnect()
 
     def testGetMasterPosition(self):
         "Fetching master position from the master and checking format"
         try:
-            self.master.connect()
             position = replicant.fetch_master_pos(self.master)
             self.assertTrue(position is None or _POS_CRE.match(str(position)),
                             "Position '%s' is not correct" % (str(position)))
-            self.master.disconnect()
         except replicant.NotMasterError:
             self.fail("Unable to test fetch_master_pos since master is not configured as a master")
 
@@ -114,11 +108,9 @@ class TestServerBasics(unittest.TestCase):
         "Fetching slave positions from the slaves and checking format"
         for slave in self.slaves:
             try:
-                slave.connect()
                 position = replicant.fetch_slave_pos(slave)
                 self.assertTrue(_POS_CRE.match(str(position)),
                                 "Incorrect position '%s'" % (str(position)))
-                slave.disconnect()
             except replicant.NotSlaveError:
                 pass
 

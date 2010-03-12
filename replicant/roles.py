@@ -96,7 +96,6 @@ class Master(Role):
         self.__user = repl_user
 
     def imbue(self, server):
-        server.connect()
         # Fetch and update the configuration file
         try:
             config = server.fetch_config()
@@ -160,13 +159,13 @@ class Relay(Role):
         server.stop()
         server.replace_config(config)
         server.start()
-        server.connect()
         server.sql("SET SQL_LOG_BIN = 0")
         for row in server.sql("SHOW DATABASES"):
             db = row["Database"]
             if db in ('information_schema', 'mysql'):
                 continue
             for table in server.sql("SHOW TABLES FROM %s" % (db)):
-                server.sql("ALTER TABLE %s.%s ENGINE=BLACKHOLE" % (db, table["Tables_in_" + db]))
+                server.sql("ALTER TABLE %s.%s ENGINE=BLACKHOLE" %
+                           (db, table["Tables_in_" + db]))
         server.sql("SET SQL_LOG_BIN = 1")
         

@@ -34,7 +34,7 @@
 """replicant - A library for working with deployments of MySQL servers.
 """
 
-import os, re, subprocess, MySQLdb, ConfigParser
+import os, re, warnings, subprocess, MySQLdb, ConfigParser
 
 from configfile import *
 from machine import *
@@ -47,10 +47,6 @@ class Error(BaseException):
 
 class EmptyRowError(Error):
     "Class to handle attempts to fetch a key from an empty row."
-    pass
-
-class NotConnectedError(Error):
-    "Exception raised when the server is not connected."
     pass
 
 class NoOptionError(Error):
@@ -73,8 +69,7 @@ class NotSlaveError(Error):
 
 class Position:
     """Class to represent a binlog position for a specific server."""
-    def __init__(self, server_id=None, file='', pos=0):
-        self.server_id = server_id
+    def __init__(self, file='', pos=0):
         self.file = file
         self.pos = pos
 
@@ -83,18 +78,14 @@ class Position:
         are from different servers, a ValueError exception will be
         raised.
         """
-        if self.server_id != other.server_id:
-            raise ValueError, "Positions are for different servers"
-        else:
-            return cmp((self.file, self.pos), (other.file, other.pos))
+        return cmp((self.file, self.pos), (other.file, other.pos))
 
     def __repr__(self):
         "Give a printable and parsable representation of a binlog position"
         if self.pos == 0 or self.file == '':
             args = ''
         else:
-            args = ', '.join([str(self.server_id), "'" + self.file + "'",
-                              str(self.pos)])
+            args = ', '.join(["'" + self.file + "'", str(self.pos)])
         return "Position(" + args + ")"
             
 
@@ -228,17 +219,21 @@ class Server(object):
 
         self.__role.imbue(self)
             
-    def connect(self, db=''):
+    def _connect(self):
         """Method to connect to the server, preparing for execution of
         SQL statements.  If a connection is already established, this
         function does nothing."""
-        from MySQLdb import connect
         if not self.__conn:
-            self.__conn = connect(host=self.host, port=self.port,
-                                  unix_socket=self.socket, db=db,
-                                  user=self.sql_user.name,
-                                  passwd=self.sql_user.passwd)
+            self.__conn = MySQLdb.connect(host=self.host, port=self.port,
+                                          unix_socket=self.socket,
+                                          user=self.sql_user.name,
+                                          passwd=self.sql_user.passwd)
                                       
+    def use(self, db):
+        if not self.__conn:
+            self._connect()
+        self.__conn.select_db(db)
+
     def disconnect(self):
         """Method to disconnect from the server."""
         self.__conn = None
@@ -254,9 +249,11 @@ class Server(object):
         for db in server.sql("SHOW DATABASES")
             print db["Database"]"""
 
-        self.connect()
+        self._connect()
         c = self.__conn.cursor(MySQLdb.cursors.DictCursor)
-        c.execute(command, args)
+        with warnings.catch_warnings(record=True) as w:
+            c.execute(command, args)
+            self.__warnings = w
         return Server.Row(c)
 
     def ssh(self, command):

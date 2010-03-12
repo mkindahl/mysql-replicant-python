@@ -1,4 +1,3 @@
-
 def flush_and_lock_database(server):
     """Flush all tables and lock the database"""
     server.sql("FLUSH TABLES WITH READ LOCK")
@@ -23,7 +22,6 @@ def change_master(slave, master, position=None):
     except AttributeError:
         raise NotMasterError
 
-    slave.connect()
     slave.sql("STOP SLAVE")
     if position:
         slave.sql(_CHANGE_MASTER_TO,
@@ -41,8 +39,7 @@ def fetch_master_pos(server):
     from . import EmptyRowError, NotMasterError, Position
     try:
         result = server.sql("SHOW MASTER STATUS")
-        return Position(server.server_id,
-                        result["File"], result["Position"])
+        return Position(result["File"], result["Position"])
     except EmptyRowError:
         raise NotMasterError
 
@@ -51,8 +48,7 @@ def fetch_slave_pos(server):
     from . import Position, EmptyRowError, NotSlaveError
     try:
         result = server.sql("SHOW SLAVE STATUS")
-        return Position(server.server_id,
-                        result["Relay_Master_Log_File"],
+        return Position(result["Relay_Master_Log_File"],
                         result["Exec_Master_Log_Pos"])
     except EmptyRowError:
         raise NotSlaveError
@@ -62,13 +58,16 @@ _START_SLAVE_UNTIL = """START SLAVE UNTIL
 
 _MASTER_POS_WAIT = "SELECT MASTER_POS_WAIT(%s, %s)"
 
+def slave_wait_for_pos(slave, position):
+    slave.sql(_MASTER_POS_WAIT, (position.file, position.pos))
+
 def slave_wait_and_stop(slave, position):
     """Set up replication so that it will wait for the position to be
     reached and then stop replication exactly at that binlog
     position."""
-    server.sql("STOP_SLAVE")
-    server.sql(_START_SLAVE_UNTIL, (position.file, position.pos))
-    server.sql(_MASTER_POS_WAIT, (position.file, position.pos))
+    slave.sql("STOP SLAVE")
+    slave.sql(_START_SLAVE_UNTIL, (position.file, position.pos))
+    slave.sql(_MASTER_POS_WAIT, (position.file, position.pos))
     
 def slave_wait_for_empty_relay_log(slave):
     "Wait until the relay log is empty and return."
@@ -109,7 +108,6 @@ def clone(slave, source, master = None):
     """Function to create a new slave by cloning either a master or a
     slave."""
     backup_name = server.host + ".tar.gz"
-    source.connect()
     if master is not None:
         source.sql("STOP SLAVE");
     lock_database(source)

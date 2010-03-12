@@ -54,7 +54,7 @@ class MultiLinux(Linux):
         time.sleep(1)           # Need some time for server to start
         print "done"
 
-_replicant_user = User("mysql_replicant", "xyzzy")
+_replicant_user = User("mysql_replicant")
 _repl_user = User("repl_user", "xyzzy")
 
 def _cnf(name):

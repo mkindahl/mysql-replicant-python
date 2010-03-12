@@ -67,14 +67,43 @@ class TestCommands(unittest.TestCase):
         for slave in self.slaves:
             change_master(slave, self.master)
 
-        self.master.connect("test")
+        self.master.use("test")
         self.master.sql("DROP TABLE IF EXISTS t1")
         self.master.sql("CREATE TABLE t1 (a INT)")
         self.master.disconnect()
 
         for slave in self.slaves:
-            slave.connect("test")
+            slave.use("test")
             result = slave.sql("SHOW TABLES")
+
+    def testSlaveWaitAndStop(self):
+        import replicant
+
+        slave = self.slaves[0]
+        master = self.master
+
+        slave.sql("STOP SLAVE")
+        pos1 = replicant.fetch_master_pos(master)
+        replicant.change_master(slave, master, pos1)
+        slave.sql("START SLAVE")
+
+        master.use("test")
+        master.sql("DROP TABLE IF EXISTS t1")
+        master.sql("CREATE TABLE t1 (a INT)")
+        master.sql("INSERT INTO t1 VALUES (1),(2)")
+        pos2 = replicant.fetch_master_pos(master)
+        master.sql("INSERT INTO t1 VALUES (3),(4)")
+        pos3 = replicant.fetch_master_pos(master)
+        replicant.slave_wait_and_stop(slave, pos2)
+        pos4 = replicant.fetch_slave_pos(slave)
+        self.assertEqual(pos2, pos4)
+        slave.use("test")
+        row = slave.sql("SELECT COUNT(*) AS count FROM t1")
+        self.assertEqual(row['count'], 2)
+        slave.sql("START SLAVE")
+        replicant.slave_wait_for_pos(slave, pos3)
+        row = slave.sql("SELECT COUNT(*) AS count FROM t1")
+        self.assertEqual(row['count'], 4)
 
 def suite():
     return unittest.makeSuite(TestCommands, 'test')
