@@ -61,6 +61,13 @@ _MASTER_POS_WAIT = "SELECT MASTER_POS_WAIT(%s, %s)"
 def slave_wait_for_pos(slave, position):
     slave.sql(_MASTER_POS_WAIT, (position.file, position.pos))
 
+def slave_status_wait_until(server, field, pred):
+    while True:
+        row = server.sql("SHOW SLAVE STATUS")
+        value = row[field]
+        if pred(value):
+            return value
+
 def slave_wait_and_stop(slave, position):
     """Set up replication so that it will wait for the position to be
     reached and then stop replication exactly at that binlog

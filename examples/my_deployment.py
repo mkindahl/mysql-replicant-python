@@ -59,5 +59,7 @@ servers = [Server('master',
                   machine=Linux(),
                   port=3310,
                   socket='/var/run/mysqld/mysqld4.sock')]
+
 master = servers[0]
+common = servers[0]              # Where the common database is stored
 slaves = servers[1:]

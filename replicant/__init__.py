@@ -96,7 +96,7 @@ class User(object):
         self.passwd = passwd
 
     def __repr__(self):
-        return ' '.join(['<', self.name, ',', self.passwd, '>'])
+        return "User('%s','%s')" % (self.name, self.passwd)
 
 
 class Server(object):
@@ -212,33 +212,37 @@ class Server(object):
 
         self.__machine = machine
         self.__config_manager = config_manager
-        self.__role = role
         self.__conn = None
         self.__config = None
         self.__tmpfile = None
 
-        self.__role.imbue(self)
+        self.__role = role
+        self.imbue(role)
             
-    def _connect(self):
+    def _connect(self, db=''):
         """Method to connect to the server, preparing for execution of
         SQL statements.  If a connection is already established, this
         function does nothing."""
         if not self.__conn:
             self.__conn = MySQLdb.connect(host=self.host, port=self.port,
-                                          unix_socket=self.socket,
+                                          unix_socket=self.socket, db=db,
                                           user=self.sql_user.name,
                                           passwd=self.sql_user.passwd)
+        elif db:
+            self.__conn.select_db(db)
                                       
-    def use(self, db):
-        if not self.__conn:
-            self._connect()
-        self.__conn.select_db(db)
-
+    def imbue(self, role):
+        """Imbue a server with a new role."""
+        self.__role.unimbue(self)
+        self.__role = role
+        self.__role.imbue(self)
+        
     def disconnect(self):
         """Method to disconnect from the server."""
         self.__conn = None
+        return self
                                       
-    def sql(self, command, args=None):
+    def sql(self, command, args=None, db=''):
         """Execute a SQL command on the server. This first requires a
         connection to the server.
 
@@ -249,7 +253,7 @@ class Server(object):
         for db in server.sql("SHOW DATABASES")
             print db["Database"]"""
 
-        self._connect()
+        self._connect(db)
         c = self.__conn.cursor(MySQLdb.cursors.DictCursor)
         with warnings.catch_warnings(record=True) as w:
             c.execute(command, args)
@@ -286,10 +290,13 @@ class Server(object):
 
     def replace_config(self, config, path=None):
         self.__config_manager.replace_config(self, config, path)
+        return self
 
     def stop(self):
         self.__machine.stop_server(self)
+        return self
 
     def start(self):
         self.__machine.start_server(self)
+        return self
 

@@ -61,23 +61,21 @@ class TestCommands(unittest.TestCase):
                 pass
 
     def testChangeMaster(self):
-        "Test the change_master command."
+        "Test the change_master function"
         from replicant import change_master
 
         for slave in self.slaves:
             change_master(slave, self.master)
 
-        self.master.use("test")
-        self.master.sql("DROP TABLE IF EXISTS t1")
-        self.master.sql("CREATE TABLE t1 (a INT)")
+        self.master.sql("DROP TABLE IF EXISTS t1", db="test")
+        self.master.sql("CREATE TABLE t1 (a INT)", db="test")
         self.master.disconnect()
 
         for slave in self.slaves:
-            slave.use("test")
-            result = slave.sql("SHOW TABLES")
+            result = slave.sql("SHOW TABLES", db="test")
 
     def testSlaveWaitAndStop(self):
-        import replicant
+        "Test the slave_wait_and_stop function"
 
         slave = self.slaves[0]
         master = self.master
@@ -87,23 +85,32 @@ class TestCommands(unittest.TestCase):
         replicant.change_master(slave, master, pos1)
         slave.sql("START SLAVE")
 
-        master.use("test")
-        master.sql("DROP TABLE IF EXISTS t1")
-        master.sql("CREATE TABLE t1 (a INT)")
-        master.sql("INSERT INTO t1 VALUES (1),(2)")
+        master.sql("DROP TABLE IF EXISTS t1", db="test")
+        master.sql("CREATE TABLE t1 (a INT)", db="test")
+        master.sql("INSERT INTO t1 VALUES (1),(2)", db="test")
         pos2 = replicant.fetch_master_pos(master)
-        master.sql("INSERT INTO t1 VALUES (3),(4)")
+        master.sql("INSERT INTO t1 VALUES (3),(4)", db="test")
         pos3 = replicant.fetch_master_pos(master)
         replicant.slave_wait_and_stop(slave, pos2)
         pos4 = replicant.fetch_slave_pos(slave)
         self.assertEqual(pos2, pos4)
-        slave.use("test")
-        row = slave.sql("SELECT COUNT(*) AS count FROM t1")
+        row = slave.sql("SELECT COUNT(*) AS count FROM t1", db="test")
         self.assertEqual(row['count'], 2)
         slave.sql("START SLAVE")
         replicant.slave_wait_for_pos(slave, pos3)
-        row = slave.sql("SELECT COUNT(*) AS count FROM t1")
+        row = slave.sql("SELECT COUNT(*) AS count FROM t1", db="test")
         self.assertEqual(row['count'], 4)
+
+    def testSlaveStatusWaitUntil(self):
+        "Test slave_status_wait_until"
+        slave = self.slaves[0]
+        master = self.master
+
+        slave.sql("STOP SLAVE")
+        pos1 = replicant.fetch_master_pos(master)
+        replicant.change_master(slave, master, pos1)
+        slave.sql("START SLAVE")
+        
 
 def suite():
     return unittest.makeSuite(TestCommands, 'test')

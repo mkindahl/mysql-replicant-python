@@ -1,4 +1,4 @@
-import ConfigParser
+import MySQLdb, ConfigParser
 
 class Role(object):
     """Base class for representing a server role.
@@ -68,7 +68,13 @@ class Role(object):
             server.replace_config(config)
         except ConfigParser.NoOptionError:
             pass
-        
+
+    def imbue(self, server):
+        pass
+
+    def unimbue(self, server):
+        pass
+
 class Vagabond(Role):
     """A vagabond is a server that is not part of the deployment."""
 
@@ -83,13 +89,19 @@ class Master(Role):
     master. It means that it has a replication user with the right
     privileges and also have the binary log activated.
 
-    The sequence below is a "smart" way to update the password of the
-    user. However, there are some missing defaults for the following
-    fields, causing warnings when executed: ssl_cipher, x509_issuer,
-    x509_subject
+    There is a "smart" way to update the password of the user::
 
-    INSERT INTO mysql.user(user,host,password) VALUES(%s,'%%', PASSWORD(%s))
-    ON DUPLICATE KEY UPDATE password=PASSWORD(%s)
+      INSERT INTO mysql.user(user,host,password) VALUES(%s,'%%', PASSWORD(%s))
+      ON DUPLICATE KEY UPDATE password=PASSWORD(%s)
+
+    However, there are some missing defaults for the following fields,
+    causing warnings when executed:
+
+    - ssl_cipher
+
+    - x509_issuer
+
+    - x509_subject
     """
 
     def __init__(self, repl_user):
