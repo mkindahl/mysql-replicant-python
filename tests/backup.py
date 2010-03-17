@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (c) 2009, Sun Microsystems, Inc.
 # All rights reserved.
 #
@@ -33,21 +31,34 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-import unittest
+import sys, os.path
+rootpath = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
+sys.path.append(rootpath) 
+
+import unittest, replicant
+
+class TestBackup(unittest.TestCase):
+    "Test case for various backup techniques"
+
+    def setUp(self):
+        
+        self.backup = replicant.PhysicalBackup("file:/tmp/backup.tar.gz")
+        
+    def testPhysicalBackup(self):
+        from my_deployment import master
+        master.sql("CREATE TABLE IF NOT EXISTS dummy (a INT)", db="test")
+        master.sql("INSERT INTO dummy VALUES (1),(2)", db="test")
+        for row in master.sql("SELECT * FROM dummy", db="test"):
+            self.assertTrue(row['a'] in [1, 2])
+        self.backup.backup_server(master, ['test'])
+        master.sql("DROP TABLE dummy", db="test")
+        self.backup.restore_server(master)
+        tbls = master.sql("SHOW TABLES", db="test")
+        self.assertTrue('dummy' in [t["Tables_in_test"] for t in tbls])
+        master.sql("DROP TABLE dummy", db="test")
 
 def suite():
-    import tests.config, tests.basic, tests.server, tests.roles
-    import tests.commands, tests.backup
-
-    suite = unittest.TestSuite()
-    suite.addTest(tests.config.suite())
-    suite.addTest(tests.basic.suite())
-    suite.addTest(tests.roles.suite())
-    suite.addTest(tests.server.suite())
-    suite.addTest(tests.commands.suite())
-    suite.addTest(tests.backup.suite())
-
-    return suite
+    return unittest.makeSuite(TestBackup)
 
 if __name__ == '__main__':
     unittest.main(defaultTest='suite')

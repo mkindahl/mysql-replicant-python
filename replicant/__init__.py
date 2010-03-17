@@ -40,6 +40,7 @@ from configfile import *
 from machine import *
 from roles import *
 from commands import *
+from backup import *
 
 class Error(BaseException):
     "Base class for all exceptions in this package"
