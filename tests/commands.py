@@ -74,6 +74,25 @@ class TestCommands(unittest.TestCase):
         for slave in self.slaves:
             result = slave.sql("SHOW TABLES", db="test")
 
+    def testSlaveWaitForPos(self):
+        "Test the slave_wait_for_pos function"
+
+        slave = self.slaves[0]
+        master = self.master
+
+        slave.sql("STOP SLAVE")
+        pos1 = replicant.fetch_master_pos(master)
+        replicant.change_master(slave, master, pos1)
+        slave.sql("START SLAVE")
+
+        master.sql("DROP TABLE IF EXISTS t1", db="test")
+        master.sql("CREATE TABLE t1 (a INT)", db="test")
+        master.sql("INSERT INTO t1 VALUES (1),(2)", db="test")
+        pos2 = replicant.fetch_master_pos(master)
+        replicant.slave_wait_for_pos(slave, pos2)
+        pos3 = replicant.fetch_slave_pos(slave)
+        self.assert_(pos3 >= pos2)
+
     def testSlaveWaitAndStop(self):
         "Test the slave_wait_and_stop function"
 
@@ -97,7 +116,7 @@ class TestCommands(unittest.TestCase):
         row = slave.sql("SELECT COUNT(*) AS count FROM t1", db="test")
         self.assertEqual(row['count'], 2)
         slave.sql("START SLAVE")
-        replicant.slave_wait_for_pos(slave, pos3)
+        replicant.slave_wait_and_stop(slave, pos3)
         row = slave.sql("SELECT COUNT(*) AS count FROM t1", db="test")
         self.assertEqual(row['count'], 4)
 

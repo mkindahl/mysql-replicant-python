@@ -131,6 +131,12 @@ class Server(object):
                 return self.__row[key]
             else:
                 raise EmptyRowError
+
+        def __str__(self):
+            if len(self.__row) == 1:
+                return str(self.__row.values()[0])
+            else:
+                raise EmptyRowError
     
     def __init__(self, name, sql_user, ssh_user, machine,
                  config_manager=ConfigManagerFile(), role=Vagabond(), 
@@ -274,15 +280,15 @@ class Server(object):
 
         For remote commands we do not allow X11 forwarding, and the
         stdin will be redirected to /dev/null."""
-        from subprocess import Popen, PIPE
+        from subprocess import Popen, PIPE, STDOUT
 
         if self.host == "localhost":
             cmd = ["sudo", "-u" + self.ssh_user.name] + command
-            process = Popen(cmd, stdout=PIPE)
+            process = Popen(cmd, stdout=PIPE, stderr=STDOUT)
         else:
             fullname = self.ssh_user.name + "@" + self.host
             process = Popen(["ssh", "-fqTx", fullname, ' '.join(command)],
-                            stdout=PIPE)
+                            stdout=PIPE, stderr=STDOUT)
         output = process.communicate()[0]
         return output.split("\n")
 

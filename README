@@ -15,8 +15,8 @@ The following command will execute the tests for the library.
    python test.py
 
 The test suite currently does *not* use a mock database connection, so
-for the server tests to work, you have to have a set of databases
-configured.
+for the server tests to work, you have to have a set of database
+servers configured.
 
 I have done the following to set up four servers on my local machine:
 

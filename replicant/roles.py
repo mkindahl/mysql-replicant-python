@@ -116,8 +116,7 @@ class Master(Role):
 
 
             # Put the new configuration file in place
-            server.stop()
-            server.replace_config(config)
+            server.stop().replace_config(config)
 
         except ConfigParser.ParsingError:
             pass                # Didn't manage to update config file
@@ -146,9 +145,7 @@ class Final(Role):
         self._disable_binlog(server)
 
         # Put the new configuration in place
-        server.stop()
-        server.replace_config(config)
-        server.start()
+        server.stop().replace_config(config).start()
 
         server.repl_user = self.__master.repl_user
 
@@ -168,9 +165,7 @@ class Relay(Role):
         self._set_server_id(server, config)
         self._enable_binlog(server)
         config.set('log-slave-updates')
-        server.stop()
-        server.replace_config(config)
-        server.start()
+        server.stop().replace_config(config).start()
         server.sql("SET SQL_LOG_BIN = 0")
         for row in server.sql("SHOW DATABASES"):
             db = row["Database"]
