@@ -31,11 +31,43 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-from distutils.core import setup
+import distutils.core, unittest, os
 
-setup(name='mysql-replicant',
-      version='0.1.0',
-      description='Package for controlling servers in a replication deployment',
-      author='Mats Kindahl',
-      author_email='mats@sun.com',
-      packages=['replicant'])
+class TestCommand(distutils.core.Command):
+    user_options = [ ]
+
+    def initialize_options(self):
+        self._dir = os.getcwd()
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        "Finds all the tests modules in tests/, and runs them."
+
+        import tests.config, tests.basic, tests.server, tests.roles
+        import tests.commands, tests.backup
+
+        suite = unittest.TestSuite()
+        suite.addTest(tests.config.suite())
+        suite.addTest(tests.basic.suite())
+        suite.addTest(tests.roles.suite())
+        suite.addTest(tests.server.suite())
+        suite.addTest(tests.commands.suite())
+        suite.addTest(tests.backup.suite())
+        runner = unittest.TextTestRunner(verbosity=1)
+        runner.run(suite)
+
+distutils.core.setup(
+    name='mysql-replicant',
+    version='0.1.0',
+    description='Package for controlling servers in a replication deployment',
+    author='Mats Kindahl',
+    author_email='mats@kindahl.net',
+    url="http://launchpad.net/mysql-replicant-python",
+    packages=['replicant'],
+    classifiers=[
+        'Programming Language :: Python',
+    ],
+    cmdclass = { 'test': TestCommand },
+    )

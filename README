@@ -12,7 +12,7 @@ Testing
 
 The following command will execute the tests for the library.
 
-   python test.py
+   python setup.py test
 
 The test suite currently does *not* use a mock database connection, so
 for the server tests to work, you have to have a set of database
@@ -57,6 +57,37 @@ I have done the following to set up four servers on my local machine:
    is correct.
 
 5. Run the tests.
+
+
+If you have apparmor active (I had), you have to edit the apparmor
+file to avoid an error. I did the following change to
+/etc/apparmor.d/usr.sbin.mysqld:
+
+    --- usr.sbin.mysqld.orig        2010-07-04 09:16:51.218593117 +0200
+    +++ usr.sbin.mysqld     2010-07-04 09:16:14.286592607 +0200
+    @@ -23,6 +23,7 @@
+       /etc/mysql/conf.d/ r,
+       /etc/mysql/conf.d/* r,
+       /etc/mysql/my.cnf r,
+    +  /etc/mysql/mysqld[0-9].cnf, r
+       /usr/sbin/mysqld mr,
+       /usr/share/mysql/** r,
+       /var/log/mysql.log rw,
+    @@ -33,6 +34,14 @@
+       /var/log/mysql/* rw,
+       /var/run/mysqld/mysqld.pid w,
+       /var/run/mysqld/mysqld.sock w,
+    +  /var/log/mysql[1-9].log rw,
+    +  /var/log/mysql[1-9].err rw,
+    +  /var/lib/mysql[1-9]/ r,
+    +  /var/lib/mysql[1-9]/** rwk,
+    +  /var/log/mysql[1-9]/ r,
+    +  /var/log/mysql[1-9]/* rw,
+    +  /var/run/mysqld/mysqld[1-9].pid w,
+    +  /var/run/mysqld/mysqld[1-9].sock w,
+
+       /sys/devices/system/cpu/ r,
+     }
 
 
 Installation
