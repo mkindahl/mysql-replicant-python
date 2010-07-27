@@ -31,35 +31,37 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-from replicant import Server, User, Linux, ConfigManagerFile
+"""
+Module holding common definitions
+"""
 
-servers = [Server('master',
-                  server_id=1,
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3307,
-                  socket='/var/run/mysqld/mysqld1.sock',
-                  ),
-           Server('slave1', server_id=2,
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3308,
-                  socket='/var/run/mysqld/mysqld2.sock'),
-           Server('slave2', 
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3309,
-                  socket='/var/run/mysqld/mysqld3.sock'),
-           Server('slave3',
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3310,
-                  socket='/var/run/mysqld/mysqld4.sock')]
+class Position:
+    """Class to represent a binlog position for a specific server."""
+    def __init__(self, file='', pos=0):
+        self.file = file
+        self.pos = pos
 
-master = servers[0]
-common = servers[0]              # Where the common database is stored
-slaves = servers[1:]
+    def __cmp__(self, other):
+        """Compare two positions lexicographically.  If the positions
+        are from different servers, a ValueError exception will be
+        raised.
+        """
+        return cmp((self.file, self.pos), (other.file, other.pos))
+
+    def __repr__(self):
+        "Give a printable and parsable representation of a binlog position"
+        if self.pos == 0 or self.file == '':
+            args = ''
+        else:
+            args = ', '.join(["'" + self.file + "'", str(self.pos)])
+        return "Position(" + args + ")"
+            
+
+class User(object):
+    """A MySQL server user"""
+    def __init__(self, name, passwd = ""):
+        self.name = name
+        self.passwd = passwd
+
+    def __repr__(self):
+        return "User('%s','%s')" % (self.name, self.passwd)

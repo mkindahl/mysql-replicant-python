@@ -1,4 +1,4 @@
-# Copyright (c) 2009, Sun Microsystems, Inc.
+# Copyright (c) 2010, Mats Kindahl, Charles Bell, and Lars Thalmann
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@ class TestCommand(distutils.core.Command):
         "Finds all the tests modules in tests/, and runs them."
 
         import tests.config, tests.basic, tests.server, tests.roles
-        import tests.commands, tests.backup
+        import tests.commands, tests.backup, tests.binlog_reader
 
         suite = unittest.TestSuite()
         suite.addTest(tests.config.suite())
@@ -55,6 +55,7 @@ class TestCommand(distutils.core.Command):
         suite.addTest(tests.server.suite())
         suite.addTest(tests.commands.suite())
         suite.addTest(tests.backup.suite())
+        suite.addTest(tests.binlog_reader.suite())
         runner = unittest.TextTestRunner(verbosity=1)
         runner.run(suite)
 
@@ -70,4 +71,4 @@ distutils.core.setup(
         'Programming Language :: Python',
     ],
     cmdclass = { 'test': TestCommand },
-    )
+)

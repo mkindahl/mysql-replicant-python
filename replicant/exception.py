@@ -31,35 +31,37 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-from replicant import Server, User, Linux, ConfigManagerFile
+"""
+Module holding all the exceptions of the Replicant package.
+"""
 
-servers = [Server('master',
-                  server_id=1,
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3307,
-                  socket='/var/run/mysqld/mysqld1.sock',
-                  ),
-           Server('slave1', server_id=2,
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3308,
-                  socket='/var/run/mysqld/mysqld2.sock'),
-           Server('slave2', 
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3309,
-                  socket='/var/run/mysqld/mysqld3.sock'),
-           Server('slave3',
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3310,
-                  socket='/var/run/mysqld/mysqld4.sock')]
+class Error(Exception):
+    """
+    Base class for all exceptions in this package
+    """
+    pass
 
-master = servers[0]
-common = servers[0]              # Where the common database is stored
-slaves = servers[1:]
+class EmptyRowError(Error):
+    """
+    Class to handle attempts to fetch a key from an empty row.
+    """
+    pass
+
+class NoOptionError(Error):
+    "Exception raised when ConfigManager does not find the option"
+    pass
+
+class SlaveNotRunningError(Error):
+    "Exception raised when slave is not running but were expected to run"
+    pass
+
+class NotMasterError(Error):
+    """Exception raised when the server is not a master and the
+    operation is illegal."""
+    pass
+
+class NotSlaveError(Error):
+    """Exception raised when the server is not a slave and the
+    operation is illegal."""
+    pass
+

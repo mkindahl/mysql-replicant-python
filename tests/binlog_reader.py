@@ -31,35 +31,45 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-from replicant import Server, User, Linux, ConfigManagerFile
+"""
+Test of the binary log reader.
+"""
 
-servers = [Server('master',
-                  server_id=1,
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3307,
-                  socket='/var/run/mysqld/mysqld1.sock',
-                  ),
-           Server('slave1', server_id=2,
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3308,
-                  socket='/var/run/mysqld/mysqld2.sock'),
-           Server('slave2', 
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3309,
-                  socket='/var/run/mysqld/mysqld3.sock'),
-           Server('slave3',
-                  sql_user=User("mysql_replicant"),
-                  ssh_user=User("mats"),
-                  machine=Linux(),
-                  port=3310,
-                  socket='/var/run/mysqld/mysqld4.sock')]
+import sys, os.path
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOTPATH = os.path.split(_HERE)[0]
+sys.path.append(_ROOTPATH) 
 
-master = servers[0]
-common = servers[0]              # Where the common database is stored
-slaves = servers[1:]
+import unittest
+import glob
+
+import replicant
+
+class TestBinlogReader(unittest.TestCase):
+    """
+    Unit test for testing that the binlog reader works as
+    expected. This test will read from a dump from mysqlbinlog to
+    check that the parsing works as expected.
+    """
+
+    def test_size_and_pos(self):
+        """
+        Test that the length and end position of each event matches
+        what is expected.
+        """
+        for fname in glob.iglob(os.path.join(_HERE, "data/mysqld-bin.*.txt")):
+            istream = open(fname)
+            current_pos = 4
+            for event in replicant.binlog.read_events(istream):
+                self.assertEqual(event.start_pos, current_pos)
+                current_pos = event.end_pos
+
+def suite():
+    """
+    Create a test suite for the binary log reader.
+    """
+    return unittest.makeSuite(TestBinlogReader, 'test')
+
+if __name__ == '__main__':
+    unittest.main(defaultTest='suite')
+

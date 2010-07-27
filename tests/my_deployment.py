@@ -1,4 +1,4 @@
-# Copyright (c) 2009, Sun Microsystems, Inc.
+# Copyright (c) 2010, Mats Kindahl, Charles Bell, and Lars Thalmann
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,11 @@
 # SUCH DAMAGE.
 
 
-from replicant import Server, User, Linux, Master, Final
+from replicant.server import Server
+from replicant.common import User
+from replicant.machine import Linux
+from replicant.roles import Master, Final
+
 import time, os.path
 
 class MultiLinux(Linux):

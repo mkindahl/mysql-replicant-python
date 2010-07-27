@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Sun Microsystems, Inc.
+# Copyright (c) 2010, Mats Kindahl, Charles Bell, and Lars Thalmann
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
