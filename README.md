@@ -1,5 +1,4 @@
-MySQL Python Replicant
-======================
+# MySQL Python Replicant
 
 The MySQL Python Replicant is a library for controlling and
 maintaining large deployments of MySQL servers. The library provide an
@@ -7,8 +6,7 @@ API to be able to fetch data from server, redirect slave servers, and
 in general control the replication setup.
 
 
-Testing
-=======
+## Testing
 
 The following command will execute the tests for the library.
 
@@ -90,10 +88,13 @@ file to avoid an error. I did the following change to
      }
 
 
-Installation
-============
+## Installation
 
 To install the library
 
    python setup.py install
 
+## Licence
+
+The MySQL Replicant is distributed under Apache License Version
+2.0. See LICENCE file for more information.
